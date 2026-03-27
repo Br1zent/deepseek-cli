@@ -9,6 +9,8 @@ describe("Config Loader", () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "deepseek-config-test-"));
+    // Redirect config dir to isolated tmpDir so tests don't read real ~/.deepseek-cli
+    process.env["DEEPSEEK_CONFIG_DIR"] = tmpDir;
     delete process.env["DEEPSEEK_API_KEY"];
     delete process.env["DEEPSEEK_MODEL"];
     delete process.env["GROQ_API_KEY"];
@@ -18,11 +20,12 @@ describe("Config Loader", () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
     Object.assign(process.env, originalEnv);
     for (const key of Object.keys(process.env)) {
       if (!(key in originalEnv)) delete process.env[key];
     }
+    delete process.env["DEEPSEEK_CONFIG_DIR"];
   });
 
   it("throws ConfigError when apiKey is missing", async () => {

@@ -82,13 +82,30 @@ export class Agent {
         try {
           response = await this.client.chatWithTools(state.messages, filteredTools);
         } catch (err) {
-          this.spinner.fail("API request failed");
-          if (err instanceof APIError) {
-            console.error(renderError(err.message));
+          // Groq "failed_generation": model tried to call a tool but produced
+          // malformed JSON (happens on conversational prompts). Retry as plain chat.
+          if (
+            err instanceof APIError &&
+            err.message.includes("failed_generation")
+          ) {
+            this.spinner.start("Retrying without tools...");
+            try {
+              const text = await this.client.chat(state.messages);
+              response = { toolCalls: [], content: text };
+            } catch (retryErr) {
+              this.spinner.fail("API request failed");
+              console.error(renderError(retryErr instanceof APIError ? retryErr.message : String(retryErr)));
+              break;
+            }
           } else {
-            console.error(renderError(String(err)));
+            this.spinner.fail("API request failed");
+            if (err instanceof APIError) {
+              console.error(renderError(err.message));
+            } else {
+              console.error(renderError(String(err)));
+            }
+            break;
           }
-          break;
         }
 
         this.spinner.stop();

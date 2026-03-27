@@ -424,13 +424,16 @@ async function main(): Promise<void> {
 
     // Slash commands
     if (trimmed.startsWith("/")) {
-      const result = await handleSlashCommand(trimmed, {
-        history, config: currentConfig, sessionId, rl, registry,
-      });
-
-      if (result.exit) break;
-      if (result.newSessionId) sessionId = result.newSessionId;
-      if (result.newConfig) currentConfig = result.newConfig;
+      try {
+        const result = await handleSlashCommand(trimmed, {
+          history, config: currentConfig, sessionId, rl, registry,
+        });
+        if (result.exit) break;
+        if (result.newSessionId) sessionId = result.newSessionId;
+        if (result.newConfig) currentConfig = result.newConfig;
+      } catch (err) {
+        console.error(renderError(err instanceof Error ? err.message : String(err)));
+      }
       continue;
     }
 
@@ -469,6 +472,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(renderError(err instanceof Error ? err.message : String(err)));
+  // Unhandled error outside REPL loop — show message but don't dump stack
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(renderError(`Unexpected error: ${msg}`));
   process.exit(1);
 });

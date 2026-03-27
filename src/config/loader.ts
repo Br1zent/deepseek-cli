@@ -11,20 +11,23 @@ import {
   type Provider,
 } from "./schema.js";
 
-const CONFIG_DIR = path.join(os.homedir(), ".deepseek-cli");
-const CONFIG_FILE = path.join(CONFIG_DIR, "config.json");
+// DEEPSEEK_CONFIG_DIR env var lets tests inject an isolated config directory
+function getConfigDir(): string {
+  return process.env["DEEPSEEK_CONFIG_DIR"] ?? path.join(os.homedir(), ".deepseek-cli");
+}
+function getConfigFile(): string { return path.join(getConfigDir(), "config.json"); }
 
 function loadFileConfig(): PartialConfig {
-  if (!fs.existsSync(CONFIG_FILE)) {
+  if (!fs.existsSync(getConfigFile())) {
     return {};
   }
   try {
-    const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
+    const raw = fs.readFileSync(getConfigFile(), "utf-8");
     const parsed: unknown = JSON.parse(raw);
     const result = PartialConfigSchema.safeParse(parsed);
     if (!result.success) {
       throw new ConfigError(
-        `Invalid config file at ${CONFIG_FILE}:\n${result.error.issues
+        `Invalid config file at ${getConfigFile()}:\n${result.error.issues
           .map((i) => `  ${i.path.join(".")}: ${i.message}`)
           .join("\n")}`,
       );
@@ -142,14 +145,14 @@ export function loadConfig(cliOverrides: Partial<Config> = {}): Config {
 }
 
 export function saveConfigValue(key: string, value: string): void {
-  if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+  if (!fs.existsSync(getConfigDir())) {
+    fs.mkdirSync(getConfigDir(), { recursive: true, mode: 0o700 });
   }
 
   let current: Record<string, unknown> = {};
-  if (fs.existsSync(CONFIG_FILE)) {
+  if (fs.existsSync(getConfigFile())) {
     try {
-      const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
+      const raw = fs.readFileSync(getConfigFile(), "utf-8");
       current = JSON.parse(raw) as Record<string, unknown>;
     } catch {
       // start fresh if corrupted
@@ -189,7 +192,7 @@ export function saveConfigValue(key: string, value: string): void {
     current[mappedKey] = value;
   }
 
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(current, null, 2), { mode: 0o600 });
+  fs.writeFileSync(getConfigFile(), JSON.stringify(current, null, 2), { mode: 0o600 });
 }
 
 function maskKey(key: string): string {
@@ -206,5 +209,5 @@ export function showConfig(config: Config): void {
 }
 
 export function getConfigPath(): string {
-  return CONFIG_FILE;
+  return getConfigFile();
 }
