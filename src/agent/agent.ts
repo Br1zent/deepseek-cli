@@ -260,16 +260,10 @@ export class Agent {
       ? `\nExecute ${toolName}? [Y/n] `
       : chalk.yellow(`\nExecute ${chalk.bold(toolName)}? [Y/n] `);
 
-    // Reuse the existing readline interface from REPL to avoid double-echo.
-    // If none was passed (e.g. single-prompt mode), create a temporary one.
-    if (this.rl) {
-      return new Promise((resolve) => {
-        this.rl!.question(prompt, (answer) => {
-          const normalized = answer.trim().toLowerCase();
-          resolve(normalized === "" || normalized === "y" || normalized === "yes");
-        });
-      });
-    }
+    // Pause the REPL rl (if any) so it doesn't consume our keystrokes,
+    // then create a short-lived interface just for this question.
+    // terminal:false avoids setting raw TTY mode — the terminal itself echoes.
+    if (this.rl) this.rl.pause();
 
     return new Promise((resolve) => {
       const tempRl = readline.createInterface({
@@ -277,10 +271,20 @@ export class Agent {
         output: process.stderr,
         terminal: false,
       });
-      tempRl.question(prompt, (answer) => {
+
+      process.stderr.write(prompt);
+
+      tempRl.once("line", (answer) => {
         tempRl.close();
+        if (this.rl) this.rl.resume();
         const normalized = answer.trim().toLowerCase();
         resolve(normalized === "" || normalized === "y" || normalized === "yes");
+      });
+
+      // If stdin closes unexpectedly, default to "no"
+      tempRl.once("close", () => {
+        if (this.rl) this.rl.resume();
+        resolve(false);
       });
     });
   }
