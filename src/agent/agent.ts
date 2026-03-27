@@ -14,6 +14,7 @@ import {
 import { logger } from "../utils/logger.js";
 import { APIError, ToolError } from "../utils/errors.js";
 import type { AgentOptions, AgentState, APIMessage, ToolCall } from "./types.js";
+import type { Interface as RLInterface } from "node:readline";
 
 const noColor = Boolean(process.env["NO_COLOR"]);
 
@@ -21,7 +22,8 @@ export class Agent {
   private readonly client: DeepSeekClient;
   private readonly registry: ToolRegistry;
   private readonly history: ConversationHistory;
-  private readonly options: Required<AgentOptions>;
+  private readonly options: Required<Omit<AgentOptions, "readline">>;
+  private readonly rl: RLInterface | null;
   private readonly spinner: Spinner;
   private abortController: AbortController | null = null;
 
@@ -34,6 +36,7 @@ export class Agent {
     this.client = client;
     this.registry = registry;
     this.history = history;
+    this.rl = options.readline ?? null;
     this.options = {
       maxIterations: options.maxIterations ?? 50,
       autoApprove: options.autoApprove ?? false,
@@ -253,18 +256,29 @@ export class Agent {
     toolName: string,
     _args: Record<string, unknown>,
   ): Promise<boolean> {
+    const prompt = noColor
+      ? `\nExecute ${toolName}? [Y/n] `
+      : chalk.yellow(`\nExecute ${chalk.bold(toolName)}? [Y/n] `);
+
+    // Reuse the existing readline interface from REPL to avoid double-echo.
+    // If none was passed (e.g. single-prompt mode), create a temporary one.
+    if (this.rl) {
+      return new Promise((resolve) => {
+        this.rl!.question(prompt, (answer) => {
+          const normalized = answer.trim().toLowerCase();
+          resolve(normalized === "" || normalized === "y" || normalized === "yes");
+        });
+      });
+    }
+
     return new Promise((resolve) => {
-      const rl = readline.createInterface({
+      const tempRl = readline.createInterface({
         input: process.stdin,
         output: process.stderr,
+        terminal: false,
       });
-
-      const prompt = noColor
-        ? `\nExecute ${toolName}? [Y/n] `
-        : chalk.yellow(`\nExecute ${chalk.bold(toolName)}? [Y/n] `);
-
-      rl.question(prompt, (answer) => {
-        rl.close();
+      tempRl.question(prompt, (answer) => {
+        tempRl.close();
         const normalized = answer.trim().toLowerCase();
         resolve(normalized === "" || normalized === "y" || normalized === "yes");
       });

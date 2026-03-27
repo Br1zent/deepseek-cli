@@ -71,8 +71,14 @@ export class WriteFileTool extends BaseTool {
         const lines = existing.split("\n");
         const start = Math.max(1, startLine ?? 1) - 1;
         const end = Math.min(lines.length, endLine ?? lines.length);
-        const newLines = content.split("\n");
 
+        if (start >= end) {
+          return this.failure(
+            `Invalid line range: start_line (${start + 1}) must be less than end_line (${end})`,
+          );
+        }
+
+        const newLines = content.split("\n");
         lines.splice(start, end - start, ...newLines);
         fs.writeFileSync(resolvedPath, lines.join("\n"), "utf-8");
 

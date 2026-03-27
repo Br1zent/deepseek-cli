@@ -94,4 +94,6 @@ export interface AgentOptions {
   debug?: boolean;
   noWebSearch?: boolean;
   searchDepth?: "basic" | "advanced";
+  /** Existing readline interface to reuse for confirmations (avoids double echo) */
+  readline?: import("node:readline").Interface;
 }

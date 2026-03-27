@@ -408,6 +408,7 @@ async function main(): Promise<void> {
     debug: currentConfig.debug,
     noWebSearch: args.noWebSearch,
     searchDepth: currentConfig.searchDepth,
+    readline: rl,
   });
 
   // ── REPL loop ──────────────────────────────────────────────────────────

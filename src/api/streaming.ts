@@ -85,7 +85,7 @@ export async function* parseSSEStream(
                   },
                 });
               } else {
-                if (tc.id) existing.id = tc.id;
+                if (tc.id && !existing.id) existing.id = tc.id;
                 if (tc.function?.name) existing.function.name += tc.function.name;
                 if (tc.function?.arguments) existing.function.arguments += tc.function.arguments;
               }

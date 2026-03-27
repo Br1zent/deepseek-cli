@@ -1,8 +1,21 @@
 import { spawn } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
 import { BaseTool, type ToolResult } from "./base.js";
 import type { JSONSchema } from "../agent/types.js";
 
 const DEFAULT_TIMEOUT_MS = 30000;
+
+/** Expand leading ~ to home directory */
+function expandHome(p: string): string {
+  if (p === "~" || p.startsWith("~/") || p.startsWith("~\\")) {
+    return path.join(os.homedir(), p.slice(1));
+  }
+  return p;
+}
+
+/** Resolve the shell binary — prefer $SHELL, fall back to /bin/sh */
+const SHELL_BIN = process.env["SHELL"] ?? "/bin/sh";
 
 export class BashTool extends BaseTool {
   readonly name = "bash";
@@ -37,7 +50,8 @@ export class BashTool extends BaseTool {
   async run(args: Record<string, unknown>): Promise<ToolResult> {
     const command = String(args["command"] ?? "");
     const timeout = typeof args["timeout"] === "number" ? args["timeout"] : this.timeoutMs;
-    const cwd = typeof args["cwd"] === "string" ? args["cwd"] : process.cwd();
+    const rawCwd = typeof args["cwd"] === "string" ? args["cwd"] : process.cwd();
+    const cwd = expandHome(rawCwd);
 
     if (!command.trim()) {
       return this.failure("Command cannot be empty");
@@ -48,7 +62,7 @@ export class BashTool extends BaseTool {
       let stderr = "";
       let timedOut = false;
 
-      const child = spawn("bash", ["-c", command], {
+      const child = spawn(SHELL_BIN, ["-c", command], {
         cwd,
         env: { ...process.env },
         stdio: ["pipe", "pipe", "pipe"],

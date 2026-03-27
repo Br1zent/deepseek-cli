@@ -104,7 +104,6 @@ export class SearchTool extends BaseTool {
       "--line-number",
       "--no-heading",
       `--context=${opts.contextLines}`,
-      `--max-count=1`,
       "--color=never",
     ];
 

@@ -1,11 +1,20 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { BaseTool, type ToolResult } from "./base.js";
 import { PathTraversalError } from "../utils/errors.js";
 import type { JSONSchema } from "../agent/types.js";
 
+function expandHome(p: string): string {
+  if (p === "~" || p.startsWith("~/") || p.startsWith("~\\")) {
+    return path.join(os.homedir(), p.slice(1));
+  }
+  return p;
+}
+
 export function sanitizePath(filePath: string, baseDir?: string): string {
-  const resolved = path.resolve(baseDir ?? process.cwd(), filePath);
+  const expanded = expandHome(filePath);
+  const resolved = path.resolve(baseDir ?? process.cwd(), expanded);
   const base = path.resolve(baseDir ?? process.cwd());
 
   // Allow absolute paths but prevent traversal that goes outside reasonable boundaries
