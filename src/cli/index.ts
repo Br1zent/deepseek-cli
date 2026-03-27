@@ -408,7 +408,15 @@ async function main(): Promise<void> {
     debug: currentConfig.debug,
     noWebSearch: args.noWebSearch,
     searchDepth: currentConfig.searchDepth,
-    readline: rl,
+    confirm: async (toolName) => {
+      const noColorLocal = Boolean(process.env["NO_COLOR"]);
+      const prompt = noColorLocal
+        ? `\nExecute ${toolName}? [Y/n] `
+        : chalk.yellow(`\nExecute ${chalk.bold(toolName)}? [Y/n] `);
+      const answer = await ask(rl, prompt);
+      const normalized = answer.trim().toLowerCase();
+      return normalized === "" || normalized === "y" || normalized === "yes";
+    },
   });
 
   // ── REPL loop ──────────────────────────────────────────────────────────

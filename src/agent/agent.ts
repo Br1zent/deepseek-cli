@@ -1,4 +1,3 @@
-import * as readline from "node:readline";
 import chalk from "chalk";
 import type { DeepSeekClient } from "../api/client.js";
 import type { ToolRegistry } from "../tools/registry.js";
@@ -14,7 +13,6 @@ import {
 import { logger } from "../utils/logger.js";
 import { APIError, ToolError } from "../utils/errors.js";
 import type { AgentOptions, AgentState, APIMessage, ToolCall } from "./types.js";
-import type { Interface as RLInterface } from "node:readline";
 
 const noColor = Boolean(process.env["NO_COLOR"]);
 
@@ -22,8 +20,8 @@ export class Agent {
   private readonly client: DeepSeekClient;
   private readonly registry: ToolRegistry;
   private readonly history: ConversationHistory;
-  private readonly options: Required<Omit<AgentOptions, "readline">>;
-  private readonly rl: RLInterface | null;
+  private readonly options: Required<Omit<AgentOptions, "confirm">>;
+  private readonly confirmFn: ((toolName: string, args: Record<string, unknown>) => Promise<boolean>) | null;
   private readonly spinner: Spinner;
   private abortController: AbortController | null = null;
 
@@ -36,7 +34,7 @@ export class Agent {
     this.client = client;
     this.registry = registry;
     this.history = history;
-    this.rl = options.readline ?? null;
+    this.confirmFn = options.confirm ?? null;
     this.options = {
       maxIterations: options.maxIterations ?? 50,
       autoApprove: options.autoApprove ?? false,
@@ -254,39 +252,15 @@ export class Agent {
 
   private async promptConfirmation(
     toolName: string,
-    _args: Record<string, unknown>,
+    args: Record<string, unknown>,
   ): Promise<boolean> {
-    const prompt = noColor
-      ? `\nExecute ${toolName}? [Y/n] `
-      : chalk.yellow(`\nExecute ${chalk.bold(toolName)}? [Y/n] `);
+    // Delegate to the caller-supplied confirm callback (owns the readline).
+    if (this.confirmFn) {
+      return this.confirmFn(toolName, args);
+    }
 
-    // Pause the REPL rl (if any) so it doesn't consume our keystrokes,
-    // then create a short-lived interface just for this question.
-    // terminal:false avoids setting raw TTY mode — the terminal itself echoes.
-    if (this.rl) this.rl.pause();
-
-    return new Promise((resolve) => {
-      const tempRl = readline.createInterface({
-        input: process.stdin,
-        output: process.stderr,
-        terminal: false,
-      });
-
-      process.stderr.write(prompt);
-
-      tempRl.once("line", (answer) => {
-        tempRl.close();
-        if (this.rl) this.rl.resume();
-        const normalized = answer.trim().toLowerCase();
-        resolve(normalized === "" || normalized === "y" || normalized === "yes");
-      });
-
-      // If stdin closes unexpectedly, default to "no"
-      tempRl.once("close", () => {
-        if (this.rl) this.rl.resume();
-        resolve(false);
-      });
-    });
+    // Fallback for non-REPL mode (single-prompt / pipe): always approve.
+    return true;
   }
 
   private sigintHandler: (() => void) | null = null;
