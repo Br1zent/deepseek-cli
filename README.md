@@ -41,22 +41,28 @@ A production-ready terminal AI coding assistant powered by the [DeepSeek API](ht
 
 ## Installation
 
-### From npm (once published)
+### Одной командой (рекомендуется)
 
 ```bash
-npm install -g deepseek-cli
-# or
-pnpm add -g deepseek-cli
+curl -fsSL https://raw.githubusercontent.com/Br1zent/deepseek-cli/main/install.sh | bash
 ```
 
-### Build from source
+Скрипт клонирует репо, соберёт проект и добавит `deepseek` в PATH автоматически.
+
+### Вручную
 
 ```bash
-git clone <repo>
+git clone https://github.com/Br1zent/deepseek-cli.git
 cd deepseek-cli
 pnpm install
 pnpm build
-npm link   # makes `deepseek` available globally
+npm link   # делает `deepseek` доступным глобально
+```
+
+### Удаление
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Br1zent/deepseek-cli/main/uninstall.sh | bash
 ```
 
 ## Quick Start
