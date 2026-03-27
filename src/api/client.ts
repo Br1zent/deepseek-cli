@@ -118,8 +118,13 @@ export class DeepSeekClient {
       throw new APIError("No choices in API response");
     }
 
+    // Only return tool_calls when finish_reason explicitly says so.
+    // Some providers (Groq) may return tool_calls alongside finish_reason:"stop",
+    // which would cause the agent to loop indefinitely.
+    const wantsToolCalls = choice.finish_reason === "tool_calls";
+
     return {
-      toolCalls: choice.message.tool_calls ?? [],
+      toolCalls: wantsToolCalls ? (choice.message.tool_calls ?? []) : [],
       content: choice.message.content,
       usage: data.usage,
     };
