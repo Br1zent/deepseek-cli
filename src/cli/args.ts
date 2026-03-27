@@ -19,17 +19,67 @@ export interface ParsedArgs {
   };
 }
 
+/**
+ * Check if argv is a `config` subcommand BEFORE handing off to commander.
+ * This prevents commander from seeing subcommands and auto-printing help.
+ */
+function tryParseConfigSubcommand(argv: string[]): ParsedArgs | null {
+  // Find "config" in args (skip node and script path)
+  const args = argv.slice(2);
+  const configIdx = args.indexOf("config");
+  if (configIdx === -1) return null;
+
+  // Collect any flags before "config" to get provider
+  let provider: Provider | undefined;
+  for (let i = 0; i < configIdx; i++) {
+    const a = args[i];
+    if ((a === "-p" || a === "--provider") && args[i + 1]) {
+      const val = args[i + 1];
+      if ((PROVIDERS as readonly string[]).includes(val ?? "")) {
+        provider = val as Provider;
+      }
+    }
+  }
+
+  const sub = args[configIdx + 1];
+
+  if (sub === "show") {
+    return { provider, yes: false, noStream: false, debug: false, noWebSearch: false, dryRun: false, config: { action: "show" } };
+  }
+
+  if (sub === "set") {
+    const key   = args[configIdx + 2];
+    const value = args[configIdx + 3];
+    if (!key || !value) {
+      console.error("Usage: deepseek config set <key> <value>");
+      process.exit(1);
+    }
+    return { provider, yes: false, noStream: false, debug: false, noWebSearch: false, dryRun: false, config: { action: "set", key, value } };
+  }
+
+  // `deepseek config` with no sub → show help for config
+  console.log("Usage:");
+  console.log("  deepseek config show");
+  console.log("  deepseek config set <key> <value>");
+  console.log("\nKeys: api-key, groq-key, tavily-key, provider, model, max-tokens, temperature, base-url, bash-timeout, max-iterations");
+  process.exit(0);
+}
+
 export function parseArgs(argv: string[]): ParsedArgs {
+  // Handle config subcommand before commander sees it
+  const configResult = tryParseConfigSubcommand(argv);
+  if (configResult) return configResult;
+
   const program = new Command();
 
   program
     .name("deepseek")
     .description("DeepSeek CLI — terminal AI coding assistant")
-    .version("1.0.0")
+    .version("1.0.0", "-V, --version")
     .argument("[prompt]", "Prompt to send (omit for interactive REPL mode)")
     .option(
       "-p, --provider <provider>",
-      `AI provider to use (${PROVIDERS.join(", ")})`,
+      `AI provider: ${PROVIDERS.join(", ")}`,
       (val: string) => {
         if (!(PROVIDERS as readonly string[]).includes(val)) {
           throw new Error(`--provider must be one of: ${PROVIDERS.join(", ")}`);
@@ -37,7 +87,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
         return val as Provider;
       },
     )
-    .option("-m, --model <model>", "Model to use (e.g. deepseek-chat, llama-3.3-70b-versatile)")
+    .option("-m, --model <model>", "Model to use")
     .option("-y, --yes", "Auto-approve all tool executions", false)
     .option("--no-stream", "Disable streaming output")
     .option("--max-tokens <n>", "Maximum tokens per response", parseInt)
@@ -54,24 +104,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
       },
     )
     .option("--dry-run", "Plan tools but don't execute them", false)
-    .allowExcessArguments(false)
+    .addHelpCommand(false)       // no auto "help" subcommand
     .exitOverride();
-
-  const configCmd = new Command("config").description("Manage configuration");
-
-  const configSet = new Command("set")
-    .description("Set a configuration value")
-    .argument("<key>", "Config key (e.g. api-key, groq-key, tavily-key, model, provider)")
-    .argument("<value>", "Config value")
-    .exitOverride();
-
-  const configShow = new Command("show")
-    .description("Show current configuration")
-    .exitOverride();
-
-  configCmd.addCommand(configSet);
-  configCmd.addCommand(configShow);
-  program.addCommand(configCmd);
 
   program.parse(argv);
 
@@ -87,46 +121,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
     dryRun: boolean;
   }>();
 
-  const args = program.args;
-
-  // Handle config subcommand
-  if (argv.includes("config")) {
-    const configIdx = argv.indexOf("config");
-    const sub = argv[configIdx + 1];
-
-    if (sub === "show") {
-      return {
-        provider: opts.provider,
-        yes: false,
-        noStream: false,
-        debug: false,
-        noWebSearch: false,
-        dryRun: false,
-        config: { action: "show" },
-      };
-    }
-
-    if (sub === "set") {
-      const key = argv[configIdx + 2];
-      const value = argv[configIdx + 3];
-      if (!key || !value) {
-        console.error("Usage: deepseek config set <key> <value>");
-        process.exit(1);
-      }
-      return {
-        provider: opts.provider,
-        yes: false,
-        noStream: false,
-        debug: false,
-        noWebSearch: false,
-        dryRun: false,
-        config: { action: "set", key, value },
-      };
-    }
-  }
-
   return {
-    prompt: args[0],
+    prompt: program.args[0],
     provider: opts.provider,
     model: opts.model,
     yes: opts.yes,
