@@ -95,20 +95,21 @@ case "$SHELL_NAME" in
   fish) RC_FILE="$HOME/.config/fish/config.fish" ;;
 esac
 
+NEEDS_RELOAD=false
 if ! echo "$PATH" | grep -q "$BIN_DIR"; then
-  warn "$BIN_DIR не найден в PATH"
   if [ -n "$RC_FILE" ]; then
-    EXPORT_LINE='export PATH="$HOME/.local/bin:$PATH"'
-    if [ "$SHELL_NAME" = "fish" ]; then
-      EXPORT_LINE='fish_add_path $HOME/.local/bin'
+    # Don't add duplicate
+    if ! grep -q "local/bin" "$RC_FILE" 2>/dev/null; then
+      EXPORT_LINE='export PATH="$HOME/.local/bin:$PATH"'
+      [ "$SHELL_NAME" = "fish" ] && EXPORT_LINE='fish_add_path $HOME/.local/bin'
+      echo "" >> "$RC_FILE"
+      echo "# DeepSeek CLI" >> "$RC_FILE"
+      echo "$EXPORT_LINE" >> "$RC_FILE"
+      ok "Добавил PATH в $RC_FILE"
     fi
-    echo "" >> "$RC_FILE"
-    echo "# DeepSeek CLI" >> "$RC_FILE"
-    echo "$EXPORT_LINE" >> "$RC_FILE"
-    ok "Добавил PATH в $RC_FILE"
-    warn "Выполни: source $RC_FILE  (или перезапусти терминал)"
+    NEEDS_RELOAD=true
   else
-    warn "Добавь вручную в свой shell rc: export PATH=\"\$HOME/.local/bin:\$PATH\""
+    warn "Добавь вручную: export PATH=\"\$HOME/.local/bin:\$PATH\""
   fi
 fi
 
@@ -116,8 +117,16 @@ fi
 echo ""
 echo -e "${GREEN}${BOLD}✓ Установка завершена!${RESET}"
 echo ""
-echo -e "  Запусти:  ${CYAN}deepseek${RESET}"
-echo -e "  Или сразу настрой ключ:"
+if [ "$NEEDS_RELOAD" = true ]; then
+  echo -e "${YELLOW}${BOLD}  ⚠ Выполни одну из команд чтобы активировать deepseek:${RESET}"
+  echo ""
+  echo -e "  ${CYAN}source $RC_FILE${RESET}   ← выполни это прямо сейчас"
+  echo -e "  ${YELLOW}или просто открой новый терминал${RESET}"
+  echo ""
+else
+  echo -e "  Запусти: ${CYAN}deepseek${RESET}"
+fi
+echo -e "  Настрой ключ:"
 echo -e "  ${CYAN}deepseek config set api-key <ключ>${RESET}"
 echo -e "  ${CYAN}deepseek config set groq-key <ключ>${RESET}  ${YELLOW}(для Groq)${RESET}"
 echo ""
