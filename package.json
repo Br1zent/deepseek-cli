@@ -1,0 +1,55 @@
+{
+  "name": "deepseek-cli",
+  "version": "1.0.0",
+  "description": "Production-ready DeepSeek CLI — a terminal AI coding assistant powered by the DeepSeek API",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "deepseek": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "marked": "^12.0.0",
+    "marked-terminal": "^7.1.0",
+    "ora": "^8.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "tsup": "^8.1.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "deepseek",
+    "cli",
+    "ai",
+    "coding-assistant",
+    "terminal"
+  ],
+  "license": "MIT",
+  "author": "Br1zent (https://t.me/Br1zent)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Br1zent/deepseek-cli.git"
+  },
+  "homepage": "https://github.com/Br1zent/deepseek-cli"
+}
