@@ -312,13 +312,12 @@ async function main(): Promise<void> {
     });
   } catch (err) {
     if (err instanceof ConfigError) {
-      // In single-prompt or pipe mode — hard fail
-      const hasPipedInput = !process.stdin.isTTY;
-      if (args.prompt || hasPipedInput) {
+      // Only hard fail if an explicit prompt was passed (single-shot or pipe mode)
+      if (args.prompt) {
         console.error(renderError(err.message));
         process.exit(1);
       }
-      // In REPL mode — offer setup wizard
+      // Otherwise always offer the setup wizard (works in TTY, IDE terminals, etc.)
       needsSetup = true;
       config = null as unknown as Config;
     } else {
@@ -329,7 +328,8 @@ async function main(): Promise<void> {
   if (config!?.debug) logger.setLevel("debug");
 
   // ── Pipe / single-prompt mode ──────────────────────────────────────────
-  const hasPipedInput = !process.stdin.isTTY;
+  // isTTY can be undefined in IDE terminals — treat it as interactive if no explicit prompt
+  const hasPipedInput = process.stdin.isTTY === false;
   if ((args.prompt || hasPipedInput) && !needsSetup) {
     let prompt = args.prompt ?? "";
     if (hasPipedInput) {
